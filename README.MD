@@ -6,9 +6,13 @@ git clone https://github.com/Rifhice/polytech-booker.git
 cd polytech-booker
 npm install
 ```
-Fill out the variables in file
+Grab the event url on the official website
+![](url tuto.gif)
+
+Fill out the env variables
 ```
-nano index.js
+cp model.env .env
+nano .env
 ```
 Start with
 ```
