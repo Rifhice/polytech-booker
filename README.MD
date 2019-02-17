@@ -1,5 +1,16 @@
 # Polytech booker
 
+## Description
+
+This script will try to book a place for a Polytech event by making request at an interval before the event opening and for a certain amount of time after
+It needs you to fill out your credentials to make request in your name, the event you want to book and the time of the event opening.
+
+The program needs to be run BEFORE the event opening and kept alive until it stops itself.
+
+OPTIONAL : The time between request and the time before and after the event opening can be changed
+
+## Installation / Running
+
 Clone repository and install packages
 ```
 git clone https://github.com/Rifhice/polytech-booker.git
