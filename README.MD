@@ -7,7 +7,7 @@ cd polytech-booker
 npm install
 ```
 Grab the event url on the official website
-![](url tuto.gif)
+![](url_tuto.gif)
 
 Fill out the env variables
 ```
