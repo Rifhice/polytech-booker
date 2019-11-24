@@ -28,6 +28,12 @@ Fill out the env variables
 cp model.env .env
 nano .env
 ```
+
+Enter the accounts credentials and the bus you want to book for the account in the credentials.json file
+```
+nano ./credentials.json
+```
+
 Start with
 ```
 node index.js

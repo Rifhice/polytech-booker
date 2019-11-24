@@ -4,15 +4,14 @@ const Parser = require('node-html-parser')
 const schedule = require('node-schedule');
 const moment = require('moment')
 require('dotenv').config()
+const credentials = require("./credentials.json")
 
 const eventOpeningTime = process.env.EVENT_OPENING_TIME
-const email = process.env.EMAIL
-const password = process.env.PASSWORD
 const eventUrl = process.env.EVENT_URL
 const minutesBeforeAndAfter = process.env.MINUTES_BEFORE_AND_AFTER || 1 //Minutes
 const intervalBetweenRequests = process.env.INTERVAL_BETWEEN_REQUEST || 500 //Milliseconds
 
-if (!email || !password || !eventUrl || !eventOpeningTime) {
+if (!eventUrl || !eventOpeningTime) {
     console.log("Fill out the variables")
     process.exit()
 }
@@ -23,7 +22,9 @@ const endCronTime = moment(momentOpeningTime).add(minutesBeforeAndAfter, 'minute
 
 const cronTime = `${startCronTime.minutes()} ${startCronTime.hours()} ${startCronTime.date()} ${startCronTime.month() + 1} *`
 
-const book = async (email, password, intervalBetweenRequests, eventUrl, endCronTime) => {
+const buildBusURL = (resa, event, bus) => `https://bde.polytechmontpellier.fr/Event/busEdit/${resa}/0/${event}/${bus}`
+
+const book = async (email, password, bus, intervalBetweenRequests, eventUrl, endCronTime) => {
     console.log("Trying to login...")
     const login = await Axios.post("https://bde.polytechmontpellier.fr/Home/verifLogin",
         querystring.stringify({
@@ -31,34 +32,44 @@ const book = async (email, password, intervalBetweenRequests, eventUrl, endCronT
             password
         })
     )
-    if (login.headers['set-cookie']) {
-        console.log("Login success")
-        const cookie = login.headers['set-cookie'].map(part => part.split(';')[0]).join('; ')
-        const interval = setInterval(async (Cookie, eventUrl, endCronTime) => {
-            if (!moment().isAfter(endCronTime)) {
-                const data = await Axios.request({
-                    url: eventUrl,
-                    method: "get",
-                    headers: {
-                        Cookie
-                    }
-                })
-                const root = Parser.parse(data.data);
-                //console.log(root.querySelector('.collection-item'));
-                console.log(data.status)
+    if (!login.headers['set-cookie']) return console.log("Login failed, check the password for", email)
+    console.log("Login success", email)
+    const cookie = login.headers['set-cookie'].map(part => part.split(';')[0]).join('; ')
+    const interval = setInterval(async (Cookie, eventUrl, endCronTime) => {
+        if (moment().isAfter(endCronTime)) return console.log("Place should be booked, exiting") || clearInterval(interval)
+        const data = await Axios.request({
+            url: eventUrl,
+            method: "get",
+            headers: {
+                Cookie
             }
-            else {
-                clearInterval(interval)
-                console.log("Place should be booked, exiting")
-                process.exit()
-            }
-        }, intervalBetweenRequests, cookie, eventUrl, endCronTime)
-    }
-    else {
-        console.log("Login failed, check the password, quitting")
-        process.exit()
-    }
+        })
+        if (!data.data) { //Place booked!
+            const rawResaUrl = data.headers.refresh
+            const parsedResaUrl = rawResaUrl.split("=").pop()
+            const busReservatioURL = buildBusURL(parsedResaUrl.split("/").pop(), eventUrl.split("/").pop(), bus)
+            console.log(busReservatioURL)
+            const busReservationResult = await Axios.request({
+                url: busReservatioURL,
+                method: "get",
+                headers: {
+                    Cookie
+                }
+            })
+            console.log(busReservationResult)
+            console.log(busReservationResult.data)
+            return
+        }
+        if (data.data.includes("Tu as déjà réservé une place !")) {
+            clearInterval(interval)
+            console.log("Place should be booked for", email)
+            return
+        }
+        console.log(data.data, email)
+    }, intervalBetweenRequests, cookie, eventUrl, endCronTime)
 }
 console.log("Scheduling...")
-schedule.scheduleJob(cronTime, () => book(email, password, intervalBetweenRequests, eventUrl, endCronTime));
+schedule.scheduleJob(cronTime, () =>
+    credentials.map(credential => book(credential.email, credential.password, credential.bus || 1, intervalBetweenRequests, eventUrl, endCronTime))
+);
 console.log("Awaiting the appropriate time")
